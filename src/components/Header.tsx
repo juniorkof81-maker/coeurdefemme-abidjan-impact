@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { Menu, X, Heart } from "lucide-react";
+import { Menu, X, Heart, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut, loading } = useAuth();
 
   const navigation = [
     { name: "Accueil", href: "/" },
@@ -40,7 +48,7 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* CTA Button */}
+          {/* CTA Button & Auth */}
           <div className="hidden md:flex items-center space-x-4">
             <Button variant="outline" size="sm" asChild>
               <Link to="/help">
@@ -48,6 +56,32 @@ const Header = () => {
                 Faire un don
               </Link>
             </Button>
+            
+            {!loading && (
+              user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <User className="w-4 h-4 mr-2" />
+                      Mon compte
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Se déconnecter
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button size="sm" asChild>
+                  <Link to="/auth">
+                    <User className="w-4 h-4 mr-2" />
+                    Connexion
+                  </Link>
+                </Button>
+              )
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -73,13 +107,32 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              <div className="px-4 pt-4">
+              <div className="px-4 pt-4 space-y-2">
                 <Button className="w-full" asChild>
                   <Link to="/help" onClick={() => setIsMenuOpen(false)}>
                     <Heart className="w-4 h-4 mr-2" />
                     Faire un don
                   </Link>
                 </Button>
+                
+                {!loading && (
+                  user ? (
+                    <Button variant="outline" className="w-full" onClick={() => {
+                      signOut();
+                      setIsMenuOpen(false);
+                    }}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Se déconnecter
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                        <User className="w-4 h-4 mr-2" />
+                        Connexion
+                      </Link>
+                    </Button>
+                  )
+                )}
               </div>
             </nav>
           </div>
