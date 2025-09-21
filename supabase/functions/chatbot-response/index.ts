@@ -48,69 +48,46 @@ INSTRUCTIONS:
 - Si tu ne sais pas quelque chose, oriente vers le contact direct
 - Reste dans le contexte humanitaire de l'ONG`;
 
-    // Try OpenAI API first (most common)
-    try {
-      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: message }
-          ],
-          max_tokens: 500,
+    // Use Gemini API
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `${systemPrompt}\n\nUtilisateur: ${message}`
+          }]
+        }],
+        generationConfig: {
           temperature: 0.7,
-        }),
-      });
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 500,
+        }
+      }),
+    });
 
-      if (openAIResponse.ok) {
-        const data = await openAIResponse.json();
-        const response = data.choices[0].message.content;
-        
-        console.log('OpenAI response success');
-        return new Response(JSON.stringify({ response }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    } catch (openAIError) {
-      console.log('OpenAI failed, trying Perplexity...', openAIError);
+    if (!geminiResponse.ok) {
+      const errorData = await geminiResponse.json();
+      console.error('Gemini API error:', errorData);
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 
-    // Try Perplexity API as fallback
-    try {
-      const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.2,
-          top_p: 0.9,
-          max_tokens: 500,
-        }),
+    const data = await geminiResponse.json();
+    console.log('Gemini response:', data);
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      const response = data.candidates[0].content.parts[0].text;
+      
+      console.log('Gemini response success');
+      return new Response(JSON.stringify({ response }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-      if (perplexityResponse.ok) {
-        const data = await perplexityResponse.json();
-        const response = data.choices[0].message.content;
-        
-        console.log('Perplexity response success');
-        return new Response(JSON.stringify({ response }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    } catch (perplexityError) {
-      console.log('Perplexity failed', perplexityError);
+    } else {
+      console.error('Unexpected Gemini response format:', data);
+      throw new Error('Invalid response format from Gemini');
     }
 
     // Fallback response if APIs fail
